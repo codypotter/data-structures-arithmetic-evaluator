@@ -27,31 +27,33 @@ int performOperation(char theoperator, int operand1, int operand2);
 int convertCharToInt(char theChar);
 
 int main(void) {
-	cout << "Author: Cody Potter" << endl;
-	bool didContinue = true;
-	while (didContinue) {
-		string infixExpression = "";
+	cout << "Author: Cody Potter" << endl << endl;
+
+	string infixExpressions[] = {	"5 # 2",
+									"5 * - 6 8",
+									"5*2  +   3",
+									"3 + 5 * (7-2)",
+									"3 + ( (8-5) * (4+9) )"
+								};
+	
+	for (unsigned int i = 0; i < infixExpressions->length(); i++) {
+		cout << "Infix: " << infixExpressions[i] << endl;
 		string postfixExpression = "";
 
-		cout << "Please enter an infix expression to convert and evaluate (or quit to exit): ";
-		getline(cin, infixExpression);
-		if (infixExpression == "quit") {
-			didContinue = false;
-			continue;
-		}
-		
-		cout << "Infix expression: " << infixExpression << endl;
-
-		postfixExpression = infixToPostfix(infixExpression);
+		postfixExpression = infixToPostfix(infixExpressions[i]);
 		if (!isValid(postfixExpression)) {
-			cout << "ERROR: Not a valid infix expression. Please try again." << endl;
+			cout << "ERROR: Not a valid infix expression. Please try again." << endl << endl;
 			continue;
 		}
-		cout << "Postfix expression: " << postfixExpression << endl;
+		cout << "Postfix: " << postfixExpression << endl;
 
-		cout << "Result: " << evaluatePostfix(postfixExpression) << endl;
+		int value = evaluatePostfix(postfixExpression);
+		if (value == INT_MAX) {
+			cout << "ERROR: Something went wrong." << endl << endl;
+			continue;
+		}
+		cout << "Result: " << value << endl << endl;
 	}
-	
 	return 0;
 }
 
@@ -77,7 +79,7 @@ string infixToPostfix(string expression) {
 				operatorStack.pop();
 			}
 			operatorStack.push(formattedExpression[i]);
-		} else if (	isOperand(formattedExpression[i])) {
+		} else if (isOperand(formattedExpression[i])) {
 			postfix += formattedExpression[i];
 		} else if (isLeftParenthesis(formattedExpression[i])) {
 			operatorStack.push(formattedExpression[i]);
@@ -87,6 +89,8 @@ string infixToPostfix(string expression) {
 				operatorStack.pop();
 			}
 			operatorStack.pop();
+		} else {
+			return "error";
 		}
 	}
 
@@ -147,16 +151,17 @@ bool isRightAssociative(char testChar) {
 }
 
 int evaluatePostfix(string expression) {
-	stack<int> values;
-	stack<char> operators;
-	string formattedExpression = removeWhiteSpace(expression);
+	stack<int> values;		// stack to hold numbers
+	stack<char> operators;	// stack to hold operators
+	expression = removeWhiteSpace(expression);
 
-	for (unsigned int i = 0; i < formattedExpression.length(); i++) {
-		if (isOperator(formattedExpression[i])) {
-			operators.push(formattedExpression[i]);
-		} else if (isOperand(formattedExpression[i])) {
-			values.push(convertCharToInt(formattedExpression[i]));
-		}
+	for (unsigned int i = 0; i < expression.length(); i++) {
+		if (isOperator(expression[i])) {
+			operators.push(expression[i]);
+		} else if (isOperand(expression[i])) {
+			values.push(convertCharToInt(expression[i]));
+		} else { return INT_MAX; }
+
 		while (!operators.empty() && values.size() == 2) {
 			int operand2 = values.top();
 			values.pop();
@@ -166,6 +171,7 @@ int evaluatePostfix(string expression) {
 			operators.pop();
 
 			int result = performOperation(theOperator, operand1, operand2);
+			if (result == INT_MAX) { return result; }
 			values.push(result);
 		}
 	}
@@ -189,6 +195,7 @@ int convertCharToInt(char theChar) {
 }
 
 bool isValid(string testString) {
+	if (testString == "error") { return false; }
 	bool test = false;
 	for (unsigned int i = 0; i < testString.length(); i++) {
 		if (isOperand(testString[i]) || isOperator(testString[i])) {
