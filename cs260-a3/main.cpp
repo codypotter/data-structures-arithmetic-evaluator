@@ -12,20 +12,29 @@
 
 using namespace std;
 
+
+/*  Function Prototypes  */
+void convertToPostfixAndEvaluate(std::string  infixExpressions[5]);
 bool isOperand(char testChar);
 bool isOperator(char testChar);
 bool isLeftParenthesis(char testChar);
 bool isRightParenthesis(char testChar);
-bool isRightAssociative(char testChar);
+bool isExponent(char testChar);
 bool hasHigherPrecedence(char operator1, char operator2);
 bool isValid(string testString);
 string removeWhiteSpace(string stringToFormat);
-string infixToPostfix(string expression);
-int getOperatorWeight(char operatorChar);
+string convertInfixToPostfix(string expression);
+int getOperatorPriority(char operatorChar);
 int evaluatePostfix(string expression);
 int performOperation(char theoperator, int operand1, int operand2);
 int convertCharToInt(char theChar);
 
+/*
+	Function:	Main
+	Desc:		Output author name and act as entry point
+	Parameters:	void
+	Return:		0 when complete
+*/
 int main(void) {
 	cout << "Author: Cody Potter" << endl << endl;
 
@@ -33,14 +42,26 @@ int main(void) {
 									"5 * - 6 8",
 									"5*2  +   3",
 									"3 + 5 * (7-2)",
-									"3 + ( (8-5) * (4+9) )"
+									"3 + ( (8-5) * (4+9) )",
+									"3 ^   6"
 								};
 	
+	convertToPostfixAndEvaluate(infixExpressions);
+	return 0;
+}
+
+/*
+	Function:	Convert To Postfix And Evaluate
+	Desc:		Loops through parameter array, converting to postfix and evaluating
+	Parameters:	String array of infix expressions
+	Return:		void
+*/
+void convertToPostfixAndEvaluate(std::string  infixExpressions[5]) {
 	for (unsigned int i = 0; i < infixExpressions->length(); i++) {
 		cout << "Infix: " << infixExpressions[i] << endl;
 		string postfixExpression = "";
 
-		postfixExpression = infixToPostfix(infixExpressions[i]);
+		postfixExpression = convertInfixToPostfix(infixExpressions[i]);
 		if (!isValid(postfixExpression)) {
 			cout << "ERROR: Not a valid infix expression. Please try again." << endl << endl;
 			continue;
@@ -49,41 +70,53 @@ int main(void) {
 
 		int value = evaluatePostfix(postfixExpression);
 		if (value == INT_MAX) {
-			cout << "ERROR: Something went wrong." << endl << endl;
+			cout << "ERROR: Not a valid infix expression. Please try again." << endl << endl;
 			continue;
 		}
 		cout << "Result: " << value << endl << endl;
 	}
-	return 0;
 }
 
+/*
+	Function:	Remove White Space
+	Desc:		Iterates over given string, deleting any space or newline characters
+	Parameters:	String to format
+	Return:		formatted string
+*/
 string removeWhiteSpace(string stringToFormat) {
 	string formattedString = "";
 	for (unsigned int i = 0; i < stringToFormat.length(); i++) {
-		if (stringToFormat[i] != ' ') {
+		if (stringToFormat[i] != ' ' && stringToFormat[i] != '\n') {
 			formattedString += stringToFormat[i];
 		}
 	}
 	return formattedString;
 }
 
-string infixToPostfix(string expression) {
+/*
+	Function:	Convert Infix To Postfix
+	Desc:		Converts infix paramater into a postfix
+				expression using a stack to store operators
+	Parameters:	String infix expression
+	Return:		String postfix expression
+*/
+string convertInfixToPostfix(string expression) {
 	stack<char> operatorStack;
 	string postfix = "";
-	string formattedExpression = removeWhiteSpace(expression);
+	expression = removeWhiteSpace(expression);
 
-	for (unsigned int i = 0; i < formattedExpression.length(); i++) {
-		if (isOperator(formattedExpression[i])) {
-			while (!operatorStack.empty() && !isLeftParenthesis(operatorStack.top()) && hasHigherPrecedence(operatorStack.top(), formattedExpression[i])) {
+	for (unsigned int i = 0; i < expression.length(); i++) {
+		if (isOperator(expression[i])) {
+			while (!operatorStack.empty() && !isLeftParenthesis(operatorStack.top()) && hasHigherPrecedence(operatorStack.top(), expression[i])) {
 				postfix += operatorStack.top();
 				operatorStack.pop();
 			}
-			operatorStack.push(formattedExpression[i]);
-		} else if (isOperand(formattedExpression[i])) {
-			postfix += formattedExpression[i];
-		} else if (isLeftParenthesis(formattedExpression[i])) {
-			operatorStack.push(formattedExpression[i]);
-		} else if (isRightParenthesis(formattedExpression[i])) {
+			operatorStack.push(expression[i]);
+		} else if (isOperand(expression[i])) {
+			postfix += expression[i];
+		} else if (isLeftParenthesis(expression[i])) {
+			operatorStack.push(expression[i]);
+		} else if (isRightParenthesis(expression[i])) {
 			while (!operatorStack.empty() && !isLeftParenthesis(operatorStack.top())) {
 				postfix += operatorStack.top();
 				operatorStack.pop();
@@ -102,89 +135,145 @@ string infixToPostfix(string expression) {
 	return postfix;
 }
 
+/*
+	Function:	Has Higher Precedence
+	Desc:		Determines which of two operators has
+				higher precedence
+	Parameters:	2 Character operators
+	Return:		Boolean if operator 1 has precedence over 
+				operator 2
+*/
 bool hasHigherPrecedence(char operator1, char operator2) {
-	int operator1Weight = getOperatorWeight(operator1);
-	int operator2Weight = getOperatorWeight(operator2);
+	int operator1Weight = getOperatorPriority(operator1);
+	int operator2Weight = getOperatorPriority(operator2);
 
 	if (operator1Weight == operator2Weight) {
-		return !isRightAssociative(operator1); // returns false if operator is ^
+		return !isExponent(operator1); 
 	}
 	return operator1Weight > operator2Weight;
 }
 
-int getOperatorWeight(char operatorChar) {
-	int weight = 0;
+/*
+	Function:	Get Operator Priority
+	Desc:		Assigns an integer 'priority' based on 
+				operator precedence
+	Parameters:	Character operator
+	Return:		Integer priority number
+*/
+int getOperatorPriority(char operatorChar) {
+	int priority = 0;
 	switch (operatorChar) {
 	case '+':
 	case '-':
-		weight = 1;
+		priority = 1;
 		break;
 	case '*':
 	case '/':
-		weight = 2;
+		priority = 2;
 		break;
 	case '^':
-		weight = 3;
+		priority = 3;
 		break;
 	}
-	return weight;
+	return priority;
 }
 
+/*
+	Function:	Is Operand
+	Desc:		Tests if parameter is an operand
+	Parameters:	Character test character
+	Return:		Boolean if test character is an operand
+*/
 bool isOperand(char testChar) {
 	return (testChar >= '0' && testChar <= '9');
 }
 
+/*
+	Function:	Is Operator
+	Desc:		Tests if parameter is an operator
+	Parameters:	Character test character
+	Return:		Boolean if test character is an operator
+*/
 bool isOperator(char testChar) {
 	return (testChar == '+' || testChar == '-' || testChar == '*' || testChar == '/' || testChar == '^');
 }
 
+/*
+	Function:	Is Left Parenthesis
+	Desc:		Tests if parameter is a left parenthesis
+	Parameters:	Character test character
+	Return:		Boolean if test character is a left parenthesis
+*/
 bool isLeftParenthesis(char testChar) {
 	return testChar == '(';
 }
 
+/*
+	Function:	Is Right Parenthesis
+	Desc:		Tests if parameter is a right parenthesis
+	Parameters:	Character test character
+	Return:		Boolean if test character is a right parenthesis
+*/
 bool isRightParenthesis(char testChar) {
 	return testChar == ')';
 }
 
-bool isRightAssociative(char testChar) {
+/*
+	Function:	Is Exponent
+	Desc:		Tests if parameter is an exponent operator
+	Parameters:	Character test character
+	Return:		Boolean if test character is an exponent operator
+*/
+bool isExponent(char testChar) {
 	return testChar == '^';
 }
 
+/*
+	Function:	Evaluate Postfix
+	Desc:		Evaluates a postfix expression, returning the result
+	Parameters:	String postfix expression
+	Return:		Integer result from postfix expression
+*/
 int evaluatePostfix(string expression) {
-	stack<int> values;		// stack to hold numbers
-	stack<char> operators;	// stack to hold operators
-	expression = removeWhiteSpace(expression);
+	stack<int> operands;
 
 	for (unsigned int i = 0; i < expression.length(); i++) {
-		if (isOperator(expression[i])) {
-			operators.push(expression[i]);
-		} else if (isOperand(expression[i])) {
-			values.push(convertCharToInt(expression[i]));
-		} else { return INT_MAX; }
+		if (isOperand(expression[i])) {
+			operands.push(convertCharToInt(expression[i]));
 
-		while (!operators.empty() && values.size() == 2) {
-			int operand2 = values.top();
-			values.pop();
-			int operand1 = values.top();
-			values.pop();
-			char theOperator = operators.top();
-			operators.pop();
+		} else if (isOperator(expression[i]) && !operands.empty()) {
+			int operand2 = operands.top();	// store each operand in the stack, and pop off
+			operands.pop();
+			if (operands.empty()) { return INT_MAX; } // make sure there are enough operands to pop
+			int operand1 = operands.top();
+			operands.pop();
 
-			int result = performOperation(theOperator, operand1, operand2);
+			int result = performOperation(expression[i], operand1, operand2);
 			if (result == INT_MAX) { return result; }
-			values.push(result);
+			operands.push(result);
 		}
 	}
-	return values.top();
+	return operands.top();
 }
 
+/*
+	Function:	Perform Operation
+	Desc:		Performs a passed in operation
+	Parameters:	Character operator, 2 Integer operands
+	Return:		Integer result from operation
+*/
 int performOperation(char theOperator, int operand1, int operand2) {
+	int result = 0;
 	switch (theOperator) {
 	case '+': return operand1 + operand2;
 	case '-': return operand1 - operand2;
 	case '*': return operand1 * operand2;
 	case '/': return operand1 / operand2;
-	case '^': return operand1 ^ operand2;
+	case '^':
+		for (int i = 0; i < operand2 - 1; i++) {
+		result += operand1 * operand1;
+	}
+		return result;
 	default: return INT_MAX;
 	}
 }
